@@ -358,13 +358,13 @@ describe('SCORM 1.2 API Tests', () => {
   describe('storeData()', () => {
     it('should set cmi.core.lesson_status to "completed"', () => {
       const scorm12API = api();
-      scorm12API.storeData(true);
+      scorm12API.storeData('', true);
       expect(scorm12API.cmi.core.lesson_status).to.equal('completed');
     });
     it('should set cmi.core.lesson_status to "browsed"', () => {
       const scorm12API = api();
       scorm12API.cmi.core.lesson_mode = 'browse';
-      scorm12API.storeData(true);
+      scorm12API.storeData('', true);
       expect(scorm12API.cmi.core.lesson_status).to.equal('browsed');
     });
     it('should set cmi.core.lesson_status to "browsed" - Initial Status',
@@ -372,7 +372,7 @@ describe('SCORM 1.2 API Tests', () => {
           const scorm12API = api();
           scorm12API.startingData = {'cmi': {'core': {'lesson_status': ''}}};
           scorm12API.cmi.core.lesson_mode = 'browse';
-          scorm12API.storeData(true);
+          scorm12API.storeData('', true);
           expect(scorm12API.cmi.core.lesson_status).to.equal('browsed');
         });
     it('should set cmi.core.lesson_status to "passed" - mastery_override: true',
@@ -381,7 +381,7 @@ describe('SCORM 1.2 API Tests', () => {
           scorm12API.cmi.core.credit = 'credit';
           scorm12API.cmi.student_data.mastery_score = '60.0';
           scorm12API.cmi.core.score.raw = '75.0';
-          scorm12API.storeData(true);
+          scorm12API.storeData('', true);
           expect(scorm12API.cmi.core.lesson_status).to.equal('passed');
         });
     it('should set cmi.core.lesson_status to "failed" - mastery_override: true',
@@ -390,7 +390,7 @@ describe('SCORM 1.2 API Tests', () => {
           scorm12API.cmi.core.credit = 'credit';
           scorm12API.cmi.student_data.mastery_score = '60.0';
           scorm12API.cmi.core.score.raw = '55.0';
-          scorm12API.storeData(true);
+          scorm12API.storeData('', true);
           expect(scorm12API.cmi.core.lesson_status).to.equal('failed');
         });
     it('should set cmi.core.lesson_status to "passed" - mastery_override: false',
@@ -400,7 +400,7 @@ describe('SCORM 1.2 API Tests', () => {
           scorm12API.cmi.core.credit = 'credit';
           scorm12API.cmi.student_data.mastery_score = '60.0';
           scorm12API.cmi.core.score.raw = '75.0';
-          scorm12API.storeData(true);
+          scorm12API.storeData('', true);
           expect(scorm12API.cmi.core.lesson_status).to.equal('failed');
         });
     it('should set cmi.core.lesson_status to "failed" - mastery_override: false',
@@ -410,7 +410,7 @@ describe('SCORM 1.2 API Tests', () => {
           scorm12API.cmi.core.credit = 'credit';
           scorm12API.cmi.student_data.mastery_score = '60.0';
           scorm12API.cmi.core.score.raw = '55.0';
-          scorm12API.storeData(true);
+          scorm12API.storeData('', true);
           expect(scorm12API.cmi.core.lesson_status).to.equal('passed');
         });
   });

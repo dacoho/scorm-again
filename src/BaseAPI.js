@@ -45,6 +45,9 @@ export default class BaseAPI {
       }
       return result;
     },
+    requestHandler: function(params) {
+      return params;
+    },
   };
   cmi;
   startingData: {};
@@ -60,7 +63,7 @@ export default class BaseAPI {
       throw new TypeError('Cannot construct BaseAPI instances directly');
     }
     this.currentState = global_constants.STATE_NOT_INITIALIZED;
-    this.lastErrorCode = 0;
+    this.lastError = global_constants.NO_ERROR;
     this.listenerArray = [];
 
     this.#timeout = null;
@@ -94,7 +97,7 @@ export default class BaseAPI {
       }
 
       this.currentState = global_constants.STATE_INITIALIZED;
-      this.lastErrorCode = 0;
+      this.lastError = global_constants.NO_ERROR;
       returnValue = global_constants.SCORM_TRUE;
       this.processListeners(callbackName);
     }
@@ -146,18 +149,35 @@ export default class BaseAPI {
         this.#error_codes.MULTIPLE_TERMINATION)) {
       this.currentState = global_constants.STATE_TERMINATED;
 
-      const result = this.storeData(true);
-      if (!this.settings.sendBeaconCommit && !this.settings.asyncCommit &&
-          typeof result.errorCode !== 'undefined' && result.errorCode > 0) {
-        this.throwSCORMError(result.errorCode);
+      try {
+        const result = this.storeData(callbackName, true);
+        if (!this.settings.sendBeaconCommit && !this.settings.asyncCommit &&
+            typeof result.errorCode !== 'undefined' && result.errorCode > 0) {
+          this.throwSCORMError(result.errorCode);
+        }
+        returnValue = (typeof result !== 'undefined' && result.result) ?
+            result.result : global_constants.SCORM_FALSE;
+
+        if (checkTerminated) this.lastError = global_constants.NO_ERROR;
+
+        returnValue = global_constants.SCORM_TRUE;
+        this.processListeners(callbackName);
+      } catch (e) {
+        if (e instanceof ValidationError) {
+          this.lastError = {
+            errorCode: e.errorCode,
+            errorMessage: e.message,
+          };
+          returnValue = global_constants.SCORM_FALSE;
+        } else {
+          if (e.message) {
+            console.error(e.message);
+          } else {
+            console.error(e);
+          }
+          this.throwSCORMError(this.#error_codes.GENERAL);
+        }
       }
-      returnValue = (typeof result !== 'undefined' && result.result) ?
-          result.result : global_constants.SCORM_FALSE;
-
-      if (checkTerminated) this.lastErrorCode = 0;
-
-      returnValue = global_constants.SCORM_TRUE;
-      this.processListeners(callbackName);
     }
 
     this.apiLog(callbackName, null, 'returned: ' + returnValue,
@@ -184,12 +204,12 @@ export default class BaseAPI {
     if (this.checkState(checkTerminated,
         this.#error_codes.RETRIEVE_BEFORE_INIT,
         this.#error_codes.RETRIEVE_AFTER_TERM)) {
-      if (checkTerminated) this.lastErrorCode = 0;
+      if (checkTerminated) this.lastError = global_constants.NO_ERROR;
       returnValue = this.getCMIValue(CMIElement);
       this.processListeners(callbackName, CMIElement);
     }
 
-    this.apiLog(callbackName, CMIElement, ': returned: ' + returnValue,
+    this.apiLog(callbackName, CMIElement, 'returned: ' + returnValue,
         global_constants.LOG_LEVEL_INFO);
     this.clearSCORMError(returnValue);
 
@@ -219,12 +239,15 @@ export default class BaseAPI {
 
     if (this.checkState(checkTerminated, this.#error_codes.STORE_BEFORE_INIT,
         this.#error_codes.STORE_AFTER_TERM)) {
-      if (checkTerminated) this.lastErrorCode = 0;
+      if (checkTerminated) this.lastError = global_constants.NO_ERROR;
       try {
         returnValue = this.setCMIValue(CMIElement, value);
       } catch (e) {
         if (e instanceof ValidationError) {
-          this.lastErrorCode = e.errorCode;
+          this.lastError = {
+            errorCode: e.errorCode,
+            errorMessage: e.message,
+          };
           returnValue = global_constants.SCORM_FALSE;
         } else {
           if (e.message) {
@@ -244,14 +267,14 @@ export default class BaseAPI {
 
     // If we didn't have any errors while setting the data, go ahead and
     // schedule a commit, if autocommit is turned on
-    if (String(this.lastErrorCode) === '0') {
+    if (String(this.lastError.errorCode) === '0') {
       if (this.settings.autocommit && !this.#timeout) {
         this.scheduleCommit(this.settings.autocommitSeconds * 1000, commitCallback);
       }
     }
 
-    this.apiLog(callbackName, CMIElement,
-        ': ' + value + ': result: ' + returnValue,
+    this.apiLog(callbackName, `${CMIElement} : ${value}`,
+        'returned: ' + returnValue,
         global_constants.LOG_LEVEL_INFO);
     this.clearSCORMError(returnValue);
 
@@ -273,20 +296,37 @@ export default class BaseAPI {
 
     if (this.checkState(checkTerminated, this.#error_codes.COMMIT_BEFORE_INIT,
         this.#error_codes.COMMIT_AFTER_TERM)) {
-      const result = this.storeData(false);
-      if (!this.settings.sendBeaconCommit && !this.settings.asyncCommit &&
-          result.errorCode && result.errorCode > 0) {
-        this.throwSCORMError(result.errorCode);
+      try {
+        const result = this.storeData(callbackName, false);
+        if (!this.settings.sendBeaconCommit && !this.settings.asyncCommit &&
+            result.errorCode && result.errorCode > 0) {
+          this.throwSCORMError(result.errorCode);
+        }
+        returnValue = (typeof result !== 'undefined' && result.result) ?
+            result.result : global_constants.SCORM_FALSE;
+
+        // this.apiLog(callbackName, 'HttpRequest', ' Result: ' + returnValue,
+        //    global_constants.LOG_LEVEL_DEBUG);
+
+        if (checkTerminated) this.lastError = global_constants.NO_ERROR;
+
+        this.processListeners(callbackName);
+      } catch (e) {
+        if (e instanceof ValidationError) {
+          this.lastError = {
+            errorCode: e.errorCode,
+            errorMessage: e.message,
+          };
+          returnValue = global_constants.SCORM_FALSE;
+        } else {
+          if (e.message) {
+            console.error(e.message);
+          } else {
+            console.error(e);
+          }
+          this.throwSCORMError(this.#error_codes.GENERAL);
+        }
       }
-      returnValue = (typeof result !== 'undefined' && result.result) ?
-          result.result : global_constants.SCORM_FALSE;
-
-      this.apiLog(callbackName, 'HttpRequest', ' Result: ' + returnValue,
-          global_constants.LOG_LEVEL_DEBUG);
-
-      if (checkTerminated) this.lastErrorCode = 0;
-
-      this.processListeners(callbackName);
     }
 
     this.apiLog(callbackName, null, 'returned: ' + returnValue,
@@ -302,7 +342,7 @@ export default class BaseAPI {
    * @return {string}
    */
   getLastError(callbackName: String) {
-    const returnValue = String(this.lastErrorCode);
+    const returnValue = String(this.lastError.errorCode);
 
     this.processListeners(callbackName);
 
@@ -412,6 +452,12 @@ export default class BaseAPI {
           break;
       }
     }
+    const logObject = {
+      date: new Date().toISOString(),
+      message: logMessage,
+      error: `(${this.lastError.errorMessage})`,
+    };
+    this.processListeners('apiLog', CMIElement, logObject);
   }
 
   /**
@@ -423,29 +469,24 @@ export default class BaseAPI {
    * @return {string}
    */
   formatMessage(functionName: String, CMIElement: String, message: String) {
+    CMIElement = CMIElement || '';
     const baseLength = 20;
     let messageString = '';
 
     messageString += functionName;
 
-    let fillChars = baseLength - messageString.length;
-
-    for (let i = 0; i < fillChars; i++) {
-      messageString += ' ';
+    if (CMIElement) {
+      messageString += ' : ';
     }
 
-    messageString += ': ';
+    const CMIElementBaseLength = 70;
 
-    if (CMIElement) {
-      const CMIElementBaseLength = 70;
+    messageString += CMIElement;
 
-      messageString += CMIElement;
+    const fillChars = CMIElementBaseLength - messageString.length;
 
-      fillChars = CMIElementBaseLength - messageString.length;
-
-      for (let j = 0; j < fillChars; j++) {
-        messageString += ' ';
-      }
+    for (let j = 0; j < fillChars; j++) {
+      messageString += ' ';
     }
 
     if (message) {
@@ -559,7 +600,7 @@ export default class BaseAPI {
             this.validateCorrectResponse(CMIElement, value);
           }
 
-          if (!scorm2004 || this.lastErrorCode === 0) {
+          if (!scorm2004 || this.lastError.errorCode === 0) {
             refObject[attribute] = value;
             returnValue = global_constants.SCORM_TRUE;
           }
@@ -775,7 +816,7 @@ export default class BaseAPI {
         callback: callback,
       });
 
-      this.apiLog('on', functionName, `Added event listener: ${this.listenerArray.length}`, global_constants.LOG_LEVEL_INFO);
+      // this.apiLog('on', functionName, `Added event listener: ${this.listenerArray.length}`, global_constants.LOG_LEVEL_INFO);
     }
   }
 
@@ -807,7 +848,7 @@ export default class BaseAPI {
       );
       if (removeIndex !== -1) {
         this.listenerArray.splice(removeIndex, 1);
-        this.apiLog('off', functionName, `Removed event listener: ${this.listenerArray.length}`, global_constants.LOG_LEVEL_INFO);
+        // this.apiLog('off', functionName, `Removed event listener: ${this.listenerArray.length}`, global_constants.LOG_LEVEL_INFO);
       }
     }
   }
@@ -845,7 +886,6 @@ export default class BaseAPI {
    * @param {*} value
    */
   processListeners(functionName: String, CMIElement: String, value: any) {
-    this.apiLog(functionName, CMIElement, value);
     for (let i = 0; i < this.listenerArray.length; i++) {
       const listener = this.listenerArray[i];
       const functionsMatch = listener.functionName === functionName;
@@ -880,7 +920,10 @@ export default class BaseAPI {
     this.apiLog('throwSCORMError', null, errorNumber + ': ' + message,
         global_constants.LOG_LEVEL_ERROR);
 
-    this.lastErrorCode = String(errorNumber);
+    this.lastError = {
+      errorCode: errorNumber,
+      errorMessage: message,
+    };
   }
 
   /**
@@ -890,7 +933,7 @@ export default class BaseAPI {
    */
   clearSCORMError(success: String) {
     if (success !== undefined && success !== global_constants.SCORM_FALSE) {
-      this.lastErrorCode = 0;
+      this.lastError = global_constants.NO_ERROR;
     }
   }
 
@@ -1066,9 +1109,9 @@ export default class BaseAPI {
    * @param {boolean} immediate
    * @return {object}
    */
-  processHttpRequest(url: String, params, immediate = false) {
-    const api = this;
-    const process = function(url, params, settings, error_codes) {
+  processHttpRequest(callbackName: String, url: String, params, immediate = false) {
+    const process = (url, params, settings, error_codes) => {
+      params = settings.requestHandler(params);
       const genericError = {
         'result': global_constants.SCORM_FALSE,
         'errorCode': error_codes.GENERAL,
@@ -1076,26 +1119,20 @@ export default class BaseAPI {
 
       let result;
       if (!settings.sendBeaconCommit) {
-        const httpReq = new XMLHttpRequest();
-        httpReq.open('POST', url, settings.asyncCommit);
-        if (settings.asyncCommit) {
-          httpReq.onload = function(e) {
-            if (typeof settings.responseHandler === 'function') {
-              result = settings.responseHandler(httpReq);
-            } else {
-              result = JSON.parse(httpReq.responseText);
-            }
-          };
-        }
         try {
+          const httpReq = new XMLHttpRequest();
+          httpReq.open('POST', url, settings.asyncCommit);
+          let stringParams;
           if (params instanceof Array) {
+            stringParams = params.join('&');
             httpReq.setRequestHeader('Content-Type',
                 'application/x-www-form-urlencoded');
-            httpReq.send(params.join('&'));
+            httpReq.send(stringParams);
           } else {
+            stringParams = JSON.stringify(params);
             httpReq.setRequestHeader('Content-Type',
                 settings.commitRequestDataType);
-            httpReq.send(JSON.stringify(params));
+            httpReq.send(stringParams);
           }
 
           if (!settings.asyncCommit) {
@@ -1104,16 +1141,54 @@ export default class BaseAPI {
             } else {
               result = JSON.parse(httpReq.responseText);
             }
+
+            if (result?.result) {
+              this.lastError = global_constants.NO_ERROR;
+              this.processListeners('commitSuccess');
+            } else {
+              this.lastError = {
+                errorCode: result.errorCode,
+                errorMessage: 'Network Request failed',
+              };
+              this.processListeners('commitError');
+            }
+
+            this.apiLog(`${callbackName} Sync HttpRequest`, stringParams,
+                'result: ' + result?.result || global_constants.SCORM_FALSE,
+                global_constants.LOG_LEVEL_INFO
+            );
           } else {
-            result = {};
-            result.result = global_constants.SCORM_TRUE;
-            result.errorCode = 0;
-            api.processListeners('CommitSuccess');
-            return result;
+            httpReq.onload = (e) => {
+              if (typeof settings.responseHandler === 'function') {
+                result = settings.responseHandler(httpReq);
+              } else {
+                result = JSON.parse(httpReq.responseText);
+              }
+
+              if (result.result == true) {
+                this.lastError = global_constants.NO_ERROR;
+                this.processListeners('CommitSuccess');
+              } else {
+                this.lastError = {
+                  errorCode: result.errorCode,
+                  errorMessage: 'Network Request failed',
+                };
+                this.processListeners('CommitError');
+              }
+              this.apiLog(`${callbackName} Async HttpRequest`, stringParams,
+                  'result: ' + result.result,
+                  global_constants.LOG_LEVEL_INFO);
+            };
+            httpReq.onerror = (e) => {
+              this.processListeners('CommitError');
+              this.apiLog(`${callbackName} Async HttpRequest`, stringParams,
+                  'result: ' + global_constants.SCORM_FALSE,
+                  global_constants.LOG_LEVEL_INFO);
+            };
           }
         } catch (e) {
           console.error(e);
-          api.processListeners('CommitError');
+          this.processListeners('CommitError');
           return genericError;
         }
       } else {
@@ -1122,37 +1197,35 @@ export default class BaseAPI {
             type: settings.commitRequestDataType,
           };
           let blob;
+          let stringParams;
           if (params instanceof Array) {
-            blob = new Blob([params.join('&')], headers);
+            stringParams = params.join('&');
+            blob = new Blob([stringParams], headers);
           } else {
-            blob = new Blob([JSON.stringify(params)], headers);
+            stringParams = JSON.stringify(params);
+            blob = new Blob([stringParams], headers);
           }
 
           result = {};
           if (navigator.sendBeacon(url, blob)) {
             result.result = global_constants.SCORM_TRUE;
             result.errorCode = 0;
+            this.processListeners('CommitSuccess');
           } else {
             result.result = global_constants.SCORM_FALSE;
             result.errorCode = 101;
+            this.processListeners('CommitError');
           }
+
+          this.apiLog(`${callbackName} SendBeacon`, stringParams,
+              'result: ' + result.result,
+              global_constants.LOG_LEVEL_INFO
+          );
         } catch (e) {
           console.error(e);
-          api.processListeners('CommitError');
+          this.processListeners('CommitError');
           return genericError;
         }
-      }
-
-      if (typeof result === 'undefined') {
-        api.processListeners('CommitError');
-        return genericError;
-      }
-
-      if (result.result === true ||
-          result.result === global_constants.SCORM_TRUE) {
-        api.processListeners('CommitSuccess');
-      } else {
-        api.processListeners('CommitError');
       }
 
       return result;

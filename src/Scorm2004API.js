@@ -210,7 +210,7 @@ export default class Scorm2004API extends BaseAPI {
           }
         }
       }
-      if (this.lastErrorCode === 0) {
+      if (this.lastError.errorCode === 0) {
         newChild = new CMIInteractionsCorrectResponsesObject();
       }
     } else if (foundFirstIndex && this.stringMatches(CMIElement,
@@ -260,7 +260,7 @@ export default class Scorm2004API extends BaseAPI {
   checkDuplicateChoiceResponse(interaction, value) {
     const interaction_count = interaction.correct_responses._count;
     if (interaction.type === 'choice') {
-      for (let i = 0; i < interaction_count && this.lastErrorCode ===
+      for (let i = 0; i < interaction_count && this.lastError.errorCode ===
       0; i++) {
         const response = interaction.correct_responses.childArray[i];
         if (response.pattern === value) {
@@ -289,14 +289,14 @@ export default class Scorm2004API extends BaseAPI {
         response_type.limit) {
       this.checkValidResponseType(response_type, value, interaction.type);
 
-      if (this.lastErrorCode === 0 &&
+      if (this.lastError.errorCode === 0 &&
           (!response_type.duplicate ||
               !this.checkDuplicatedPattern(interaction.correct_responses,
                   pattern_index, value)) ||
-          (this.lastErrorCode === 0 && value === '')) {
+          (this.lastError.errorCode === 0 && value === '')) {
         // do nothing, we want the inverse
       } else {
-        if (this.lastErrorCode === 0) {
+        if (this.lastError.errorCode === 0) {
           this.throwSCORMError(scorm2004_error_codes.GENERAL_SET_FAILURE,
               'Data Model Element Pattern Already Exists');
         }
@@ -365,7 +365,7 @@ export default class Scorm2004API extends BaseAPI {
   checkCorrectResponseValue(interaction_type, nodes, value) {
     const response = correct_responses[interaction_type];
     const formatRegex = new RegExp(response.format);
-    for (let i = 0; i < nodes.length && this.lastErrorCode === 0; i++) {
+    for (let i = 0; i < nodes.length && this.lastError.errorCode === 0; i++) {
       if (interaction_type.match(
           '^(fill-in|long-fill-in|matching|performance|sequencing)$')) {
         nodes[i] = this.removeCorrectResponsePrefixes(nodes[i]);
@@ -397,7 +397,7 @@ export default class Scorm2004API extends BaseAPI {
             }
           } else {
             if (nodes[i] !== '' && response.unique) {
-              for (let j = 0; j < i && this.lastErrorCode === 0; j++) {
+              for (let j = 0; j < i && this.lastError.errorCode === 0; j++) {
                 if (nodes[i] === nodes[j]) {
                   this.throwSCORMError(scorm2004_error_codes.TYPE_MISMATCH);
                 }
@@ -512,7 +512,7 @@ export default class Scorm2004API extends BaseAPI {
    * @param {boolean} terminateCommit
    * @return {string}
    */
-  storeData(terminateCommit: boolean) {
+  storeData(callbackName: String, terminateCommit: boolean) {
     if (terminateCommit) {
       if (this.cmi.mode === 'normal') {
         if (this.cmi.credit === 'credit') {
@@ -550,11 +550,9 @@ export default class Scorm2004API extends BaseAPI {
 
     if (this.settings.lmsCommitUrl) {
       if (this.apiLogLevel === global_constants.LOG_LEVEL_DEBUG) {
-        console.debug('Commit (terminated: ' +
-            (terminateCommit ? 'yes' : 'no') + '): ');
-        console.debug(commitObject);
+        console.debug(callbackName, terminateCommit ? '(final)' : '', commitObject);
       }
-      const result = this.processHttpRequest(this.settings.lmsCommitUrl,
+      const result = this.processHttpRequest(callbackName, this.settings.lmsCommitUrl,
           commitObject, terminateCommit);
 
       // check if this is a sequencing call, and then call the necessary JS
@@ -566,9 +564,7 @@ export default class Scorm2004API extends BaseAPI {
       }
       return result;
     } else {
-      console.log('Commit (terminated: ' +
-          (terminateCommit ? 'yes' : 'no') + '): ');
-      console.log(commitObject);
+      console.log(callbackName, terminateCommit ? '(final)' : '', commitObject);
       return global_constants.SCORM_TRUE;
     }
   }

@@ -266,7 +266,7 @@ export default class Scorm12API extends BaseAPI {
    * @param {boolean} terminateCommit
    * @return {string}
    */
-  storeData(terminateCommit: boolean) {
+  storeData(callbackName: String, terminateCommit: boolean) {
     if (terminateCommit) {
       const originalStatus = this.cmi.core.lesson_status;
       if (originalStatus === 'not attempted') {
@@ -298,17 +298,11 @@ export default class Scorm12API extends BaseAPI {
         this.settings.alwaysSendTotalTime);
 
     if (this.settings.lmsCommitUrl) {
-      if (this.apiLogLevel === global_constants.LOG_LEVEL_DEBUG) {
-        console.debug('Commit (terminated: ' +
-            (terminateCommit ? 'yes' : 'no') + '): ');
-        console.debug(commitObject);
-      }
-      return this.processHttpRequest(this.settings.lmsCommitUrl, commitObject,
+      const response = this.processHttpRequest(callbackName, this.settings.lmsCommitUrl, commitObject,
           terminateCommit);
+      return response;
     } else {
-      console.log('Commit (terminated: ' +
-          (terminateCommit ? 'yes' : 'no') + '): ');
-      console.log(commitObject);
+      console.log(callbackName, terminateCommit ? '(final)' : '', commitObject);
       return global_constants.SCORM_TRUE;
     }
   }
