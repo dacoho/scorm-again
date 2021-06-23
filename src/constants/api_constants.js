@@ -11,6 +11,10 @@ const global = {
   LOG_LEVEL_WARNING: 3,
   LOG_LEVEL_ERROR: 4,
   LOG_LEVEL_NONE: 5,
+  NO_ERROR: {
+    errorCode: 0,
+    errorMessage: 'No error',
+  },
 };
 
 const scorm12 = {

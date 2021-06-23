@@ -525,6 +525,23 @@ export class CMI extends BaseCMI {
   }
 
   /**
+   * get session_time.
+   *
+   * @return {string} ISO8601 Duration
+   */
+  getCurrentSessionTime() {
+    let sessionTime = this.#session_time;
+    const startTime = this.start_time;
+
+    if (typeof startTime !== 'undefined' && startTime !== null) {
+      const seconds = new Date().getTime() - startTime;
+      sessionTime = Util.getSecondsAsISODuration(seconds / 1000);
+    }
+
+    return sessionTime
+  }
+
+  /**
    * toJSON for cmi
    *
    * @return {

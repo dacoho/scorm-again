@@ -584,7 +584,7 @@ describe('SCORM 2004 API Tests', () => {
           scorm2004API.cmi.credit = 'credit';
           scorm2004API.cmi.completion_threshold = '0.6';
           scorm2004API.cmi.progress_measure = '0.75';
-          scorm2004API.storeData(true);
+          scorm2004API.storeData('', true);
           expect(scorm2004API.cmi.completion_status).to.equal('completed');
         });
     it('should set cmi.completion_status to "incomplete"',
@@ -593,7 +593,7 @@ describe('SCORM 2004 API Tests', () => {
           scorm2004API.cmi.credit = 'credit';
           scorm2004API.cmi.completion_threshold = '0.7';
           scorm2004API.cmi.progress_measure = '0.6';
-          scorm2004API.storeData(true);
+          scorm2004API.storeData('', true);
           expect(scorm2004API.cmi.completion_status).to.equal('incomplete');
         });
     it('should set cmi.success_status to "passed"',
@@ -602,7 +602,7 @@ describe('SCORM 2004 API Tests', () => {
           scorm2004API.cmi.credit = 'credit';
           scorm2004API.cmi.score.scaled = '0.7';
           scorm2004API.cmi.scaled_passing_score = '0.6';
-          scorm2004API.storeData(true);
+          scorm2004API.storeData('', true);
           expect(scorm2004API.cmi.success_status).to.equal('passed');
         });
     it('should set cmi.success_status to "failed"',
@@ -611,7 +611,7 @@ describe('SCORM 2004 API Tests', () => {
           scorm2004API.cmi.credit = 'credit';
           scorm2004API.cmi.score.scaled = '0.6';
           scorm2004API.cmi.scaled_passing_score = '0.7';
-          scorm2004API.storeData(true);
+          scorm2004API.storeData('', true);
           expect(scorm2004API.cmi.success_status).to.equal('failed');
         });
   });
