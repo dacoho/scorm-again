@@ -135,7 +135,7 @@ export default class BaseAPI {
      * @param {boolean} checkTerminated
      * @return {string}
      */
-    terminate(callbackName: String, checkTerminated: boolean) {
+    terminate(callbackName, checkTerminated) {
         let returnValue = global_constants.SCORM_FALSE
 
         if (
@@ -181,8 +181,7 @@ export default class BaseAPI {
                 }
             }
         }
-
-        this.apiLog(callbackName, null, 'returned: ' + returnValue, global_constants.LOG_LEVEL_INFO)
+        //this.apiLog(callbackName, null, 'returned: ' + returnValue, global_constants.LOG_LEVEL_INFO)
         this.clearSCORMError(returnValue)
 
         return returnValue
@@ -196,18 +195,36 @@ export default class BaseAPI {
      * @param {string} CMIElement
      * @return {string}
      */
-    getValue(callbackName: String, checkTerminated: boolean, CMIElement: String) {
-        let returnValue
+    getValue(callbackName, checkTerminated, CMIElement) {
+        let returnValue = global_constants.SCORM_FALSE
 
-        if (
-            this.checkState(
+        if (this.checkState(
                 checkTerminated,
                 this.#error_codes.RETRIEVE_BEFORE_INIT,
                 this.#error_codes.RETRIEVE_AFTER_TERM
             )
         ) {
             if (checkTerminated) this.lastError = global_constants.NO_ERROR
-            returnValue = this.getCMIValue(CMIElement)
+            
+            try {
+                returnValue = this.getCMIValue(CMIElement)
+            } catch (e) {
+                if (e instanceof ValidationError) {
+                    this.lastError = {
+                        errorCode: e.errorCode,
+                        errorMessage: e.message,
+                    }
+                    returnValue = global_constants.SCORM_FALSE
+                } else {
+                    if (e.message) {
+                        console.error(e.message)
+                    } else {
+                        console.error(e)
+                    }
+                    this.throwSCORMError(this.#error_codes.GENERAL)
+                }
+            }
+            
             this.processListeners(callbackName, CMIElement)
         }
 
@@ -227,7 +244,7 @@ export default class BaseAPI {
      * @param {*} value
      * @return {string}
      */
-    setValue(callbackName: String, commitCallback: String, checkTerminated: boolean, CMIElement, value) {
+    setValue(callbackName, commitCallback, checkTerminated, CMIElement, value) {
         if (value !== undefined) {
             value = String(value)
         }
@@ -285,7 +302,7 @@ export default class BaseAPI {
      * @param {boolean} checkTerminated
      * @return {string}
      */
-    commit(callbackName: String, checkTerminated: boolean) {
+    commit(callbackName, checkTerminated) {
         this.clearScheduledCommit()
 
         let returnValue = global_constants.SCORM_FALSE
@@ -305,9 +322,6 @@ export default class BaseAPI {
                 }
                 returnValue =
                     typeof result !== 'undefined' && result.result ? result.result : global_constants.SCORM_FALSE
-
-                // this.apiLog(callbackName, 'HttpRequest', ' Result: ' + returnValue,
-                //    global_constants.LOG_LEVEL_DEBUG);
 
                 if (checkTerminated) this.lastError = global_constants.NO_ERROR
 
@@ -329,8 +343,7 @@ export default class BaseAPI {
                 }
             }
         }
-
-        this.apiLog(callbackName, null, 'returned: ' + returnValue, global_constants.LOG_LEVEL_INFO)
+        // this.apiLog(callbackName, null, 'returned: ' + returnValue, global_constants.LOG_LEVEL_INFO)
         this.clearSCORMError(returnValue)
 
         return returnValue
@@ -1086,7 +1099,7 @@ export default class BaseAPI {
      * @param {boolean} immediate
      * @return {object}
      */
-    processHttpRequest(callbackName: String, url: String, params, immediate = false) {
+    processHttpRequest(callbackName, url, params, immediate = false) {
         const process = (url, params, settings, error_codes) => {
             params = settings.requestHandler(params)
             const genericError = {
