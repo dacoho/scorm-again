@@ -268,7 +268,7 @@ export default class Scorm12API extends BaseAPI {
      * @param {boolean} terminateCommit
      * @return {string}
      */
-    storeData(callbackName, terminateCommit) {
+    storeData(callbackName, terminateCommit, commitId) {
         if (terminateCommit) {
             const originalStatus = this.cmi.core.lesson_status
             if (originalStatus === 'not attempted') {
@@ -303,7 +303,8 @@ export default class Scorm12API extends BaseAPI {
                 callbackName,
                 this.settings.lmsCommitUrl,
                 commitObject,
-                terminateCommit
+                terminateCommit,
+                commitId
             )
             return response
         } else {

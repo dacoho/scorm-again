@@ -136,6 +136,7 @@ export default class BaseAPI {
      * @return {string}
      */
     terminate(callbackName, checkTerminated) {
+        const id = `${Math.floor(Math.random() * 100)}${Date.now()}`
         let returnValue = global_constants.SCORM_FALSE
 
         if (
@@ -148,7 +149,7 @@ export default class BaseAPI {
             this.currentState = global_constants.STATE_TERMINATED
 
             try {
-                const result = this.storeData(callbackName, true)
+                const result = this.storeData(callbackName, true, id)
                 if (
                     !this.settings.sendBeaconCommit &&
                     !this.settings.asyncCommit &&
@@ -181,7 +182,7 @@ export default class BaseAPI {
                 }
             }
         }
-        //this.apiLog(callbackName, null, 'returned: ' + returnValue, global_constants.LOG_LEVEL_INFO)
+        this.apiLog(callbackName, id, 'returned: ' + returnValue, global_constants.LOG_LEVEL_INFO)
         this.clearSCORMError(returnValue)
 
         return returnValue
@@ -304,14 +305,14 @@ export default class BaseAPI {
      */
     commit(callbackName, checkTerminated) {
         this.clearScheduledCommit()
-
+        const id = `${Math.floor(Math.random() * 100)}${Date.now()}`
         let returnValue = global_constants.SCORM_FALSE
 
         if (
             this.checkState(checkTerminated, this.#error_codes.COMMIT_BEFORE_INIT, this.#error_codes.COMMIT_AFTER_TERM)
         ) {
             try {
-                const result = this.storeData(callbackName, false)
+                const result = this.storeData(callbackName, false, id)
                 if (
                     !this.settings.sendBeaconCommit &&
                     !this.settings.asyncCommit &&
@@ -343,7 +344,7 @@ export default class BaseAPI {
                 }
             }
         }
-        // this.apiLog(callbackName, null, 'returned: ' + returnValue, global_constants.LOG_LEVEL_INFO)
+        this.apiLog(callbackName, id, 'returned: ' + returnValue, global_constants.LOG_LEVEL_INFO)
         this.clearSCORMError(returnValue)
 
         return returnValue
@@ -354,7 +355,7 @@ export default class BaseAPI {
      * @param {string} callbackName
      * @return {string}
      */
-    getLastError(callbackName: String) {
+    getLastError(callbackName) {
         const returnValue = String(this.lastError.errorCode)
 
         this.processListeners(callbackName)
@@ -432,9 +433,13 @@ export default class BaseAPI {
      * @param {string} logMessage
      * @param {number}messageLevel
      */
-    apiLog(functionName: String, CMIElement: String, logMessage: String, messageLevel: number) {
+    apiLog(functionName, CMIElement, logMessage, messageLevel) {
+        let commitData
+        if (typeof CMIElement == 'object') {
+            commitData = CMIElement
+            CMIElement = ''
+        }
         logMessage = this.formatMessage(functionName, CMIElement, logMessage)
-
         if (messageLevel >= this.apiLogLevel) {
             switch (messageLevel) {
                 case global_constants.LOG_LEVEL_ERROR:
@@ -456,8 +461,10 @@ export default class BaseAPI {
             }
         }
         const logObject = {
+            functionName,
             date: new Date().toISOString(),
             message: logMessage,
+            commitData: commitData,
             error: `(${this.lastError.errorMessage})`,
         }
         this.processListeners('apiLog', CMIElement, logObject)
@@ -471,19 +478,14 @@ export default class BaseAPI {
      * @param {string} message
      * @return {string}
      */
-    formatMessage(functionName: String, CMIElement: String, message: String) {
+    formatMessage(functionName, CMIElement, message) {
         CMIElement = CMIElement || ''
-        const baseLength = 20
         let messageString = ''
-
         messageString += functionName
-
         if (CMIElement) {
             messageString += ' : '
         }
-
         const CMIElementBaseLength = 70
-
         messageString += CMIElement
 
         const fillChars = CMIElementBaseLength - messageString.length
@@ -879,7 +881,7 @@ export default class BaseAPI {
      * @param {string} CMIElement
      * @param {*} value
      */
-    processListeners(functionName: String, CMIElement: String, value: any) {
+    processListeners(functionName, CMIElement, value) {
         for (let i = 0; i < this.listenerArray.length; i++) {
             const listener = this.listenerArray[i]
             const functionsMatch = listener.functionName === functionName
@@ -1099,7 +1101,7 @@ export default class BaseAPI {
      * @param {boolean} immediate
      * @return {object}
      */
-    processHttpRequest(callbackName, url, params, immediate = false) {
+    processHttpRequest(callbackName, url, params, immediate = false, commitId) {
         const process = (url, params, settings, error_codes) => {
             params = settings.requestHandler(params)
             const genericError = {
@@ -1143,7 +1145,7 @@ export default class BaseAPI {
 
                         this.apiLog(
                             `${callbackName} Sync HttpRequest`,
-                            stringParams,
+                            JSON.parse(stringParams),
                             'result: ' + result?.result || global_constants.SCORM_FALSE,
                             global_constants.LOG_LEVEL_INFO
                         )
@@ -1167,7 +1169,7 @@ export default class BaseAPI {
                             }
                             this.apiLog(
                                 `${callbackName} Async HttpRequest`,
-                                stringParams,
+                                JSON.parse(stringParams),
                                 'result: ' + result.result,
                                 global_constants.LOG_LEVEL_INFO
                             )
@@ -1215,7 +1217,7 @@ export default class BaseAPI {
 
                     this.apiLog(
                         `${callbackName} SendBeacon`,
-                        stringParams,
+                        JSON.parse(stringParams),
                         'result: ' + result.result,
                         global_constants.LOG_LEVEL_INFO
                     )
