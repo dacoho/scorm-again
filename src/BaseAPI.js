@@ -24,6 +24,7 @@ export default class BaseAPI {
         lmsCommitUrl: false,
         dataCommitFormat: 'json', // valid formats are 'json' or 'flattened', 'params'
         commitRequestDataType: 'application/json;charset=UTF-8',
+        commitRequestHeaders: [],
         autoProgress: false,
         logLevel: global_constants.LOG_LEVEL_ERROR,
         selfReportSessionTime: false,
@@ -1114,7 +1115,9 @@ export default class BaseAPI {
                 try {
                     const httpReq = new XMLHttpRequest()
                     httpReq.open('POST', url, settings.asyncCommit)
-                    httpReq.withCredentials = true;
+                    settings.commitRequestHeaders.forEach(({ name, value }) => {
+                        httpReq.setRequestHeader(name, value)
+                    })
                     let stringParams
                     if (params instanceof Array) {
                         stringParams = params.join('&')
@@ -1195,6 +1198,9 @@ export default class BaseAPI {
                     const headers = {
                         type: settings.commitRequestDataType,
                     }
+                    settings.commitRequestHeaders.forEach(({ name, value }) => {
+                        headers[name] = value
+                    })
                     let blob
                     let stringParams
                     if (params instanceof Array) {
