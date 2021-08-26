@@ -1114,6 +1114,7 @@ export default class BaseAPI {
                 try {
                     const httpReq = new XMLHttpRequest()
                     httpReq.open('POST', url, settings.asyncCommit)
+                    httpReq.withCredentials = true;
                     let stringParams
                     if (params instanceof Array) {
                         stringParams = params.join('&')
