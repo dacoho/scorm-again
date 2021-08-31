@@ -1196,32 +1196,37 @@ export default class BaseAPI {
             } else {
                 try {
                     const headers = {
-                        type: settings.commitRequestDataType,
+                        'Content-Type': settings.commitRequestDataType,
                     }
                     settings.commitRequestHeaders.forEach(({ name, value }) => {
                         headers[name] = value
                     })
-                    let blob
+                    
                     let stringParams
                     if (params instanceof Array) {
                         stringParams = params.join('&')
-                        blob = new Blob([stringParams], headers)
                     } else {
                         stringParams = JSON.stringify(params)
-                        blob = new Blob([stringParams], headers)
                     }
 
                     result = {}
-                    if (navigator.sendBeacon(url, blob)) {
+
+                    try {
+                        fetch(url, {
+                            method: 'POST',
+                            headers,
+                            body: stringParams,
+                            keepalive: true
+                        })
                         result.result = global_constants.SCORM_TRUE
                         result.errorCode = 0
                         this.processListeners('CommitSuccess')
-                    } else {
+                    } catch(e) {
                         result.result = global_constants.SCORM_FALSE
                         result.errorCode = 101
                         this.processListeners('CommitError')
                     }
-
+                    
                     this.apiLog(
                         `${callbackName} SendBeacon`,
                         JSON.parse(stringParams),
